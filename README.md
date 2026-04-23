@@ -42,59 +42,16 @@ Or use the command shortcut:
 /meeting status
 ```
 
-## Mac Setup (One-Time)
+## Transcript Source
 
-The extension reads a transcript file on your dev machine. You need something on your Mac to capture audio and sync it over. The `scripts/` directory has everything you need.
+This extension reads a transcript file — it doesn't capture audio itself. Point any transcription tool at the file and the copilot picks it up.
 
-### 1. Install dependencies
+Examples of what can produce the transcript:
+- [whisper.cpp stream](https://github.com/ggerganov/whisper.cpp) with BlackHole audio capture
+- Zoom's built-in transcription exported to a file
+- Any speech-to-text tool that writes to a text file
 
-```bash
-brew install whisper-cpp blackhole-2ch
-pip3 install rumps  # for menu bar app (optional)
-```
-
-### 2. Download a Whisper model
-
-```bash
-mkdir -p ~/.whisper-models
-curl -L "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.en.bin" \
-  -o ~/.whisper-models/ggml-medium.en.bin
-```
-
-Model options: `tiny.en` (fast, lower quality), `base.en` (balanced), `medium.en` (best accuracy on Apple Silicon), `large-v3` (best, slower).
-
-### 3. Configure audio routing
-
-1. Open **Audio MIDI Setup** (Spotlight → "Audio MIDI Setup")
-2. Click **+** → **Create Multi-Output Device**
-3. Check both your speakers/headphones AND **BlackHole 2ch**
-4. Rename to **"Zoom + Capture"**
-5. In Zoom → Settings → Audio → Speaker → select **"Zoom + Capture"**
-
-### 4. Start transcription
-
-**Option A: Menu bar app** (recommended)
-```bash
-cd scripts/
-python3 menubar.py
-```
-Click the 🎙️ icon → select BlackHole as audio source → Start Recording. Transcripts sync to your dev machine automatically.
-
-**Option B: CLI**
-```bash
-cd scripts/
-export CLOUD_DESKTOP="your-dev-machine.example.com"
-./transcribe.sh start --sync
-```
-
-### 5. Configure sync target
-
-Set your dev machine hostname:
-```bash
-export CLOUD_DESKTOP="your-dev-machine.example.com"
-```
-
-The transcript lands at `/tmp/live-transcript.txt` on the remote machine. Override with:
+Default path: `/tmp/live-transcript.txt`. Override with:
 ```bash
 export MEETING_TRANSCRIPT_PATH="/path/to/transcript.txt"
 ```
@@ -104,16 +61,13 @@ export MEETING_TRANSCRIPT_PATH="/path/to/transcript.txt"
 | Env Var | Default | Description |
 |---------|---------|-------------|
 | `MEETING_TRANSCRIPT_PATH` | `/tmp/live-transcript.txt` | Where pi reads the transcript |
-| `CLOUD_DESKTOP` | — | SSH hostname for Mac → dev machine sync |
-| `WHISPER_MODEL` | `~/.whisper-models/ggml-medium.en.bin` | Whisper model path (Mac side) |
-| `CAPTURE_DEVICE` | `2` | BlackHole capture device ID (Mac side) |
+
 
 ## How It Works
 
-1. **Mac side**: `whisper-cpp` captures system audio via BlackHole virtual audio device and writes timestamped transcript lines to a file
-2. **Sync**: `scp` copies the transcript to your dev machine every 3 seconds
-3. **Pi side**: The `meeting_copilot` tool reads the transcript file incrementally, tracking read position across calls so you only see new content
-4. **Summarization**: At meeting end, read the full transcript and ask pi to produce structured notes, action items, and decisions
+1. A transcription tool writes meeting audio to a text file (any tool works)
+2. The `meeting_copilot` tool reads that file incrementally, tracking read position across calls so you only see new content
+3. At meeting end, read the full transcript and ask pi to produce structured notes, action items, and decisions
 
 ## Files
 
@@ -122,13 +76,9 @@ pi-meeting-copilot/
 ├── package.json              # Pi package manifest
 ├── src/
 │   └── index.ts              # Extension — meeting_copilot tool + /meeting command
-├── skills/
-│   └── meeting-copilot/
-│       └── SKILL.md          # Skill file for LLM context
-└── scripts/
-    ├── menubar.py            # macOS menu bar app (rumps)
-    ├── transcribe.sh         # CLI transcription script
-    └── tail-transcript.sh    # Simple tail wrapper
+└── skills/
+    └── meeting-copilot/
+        └── SKILL.md          # Skill file for LLM context
 ```
 
 ## License
